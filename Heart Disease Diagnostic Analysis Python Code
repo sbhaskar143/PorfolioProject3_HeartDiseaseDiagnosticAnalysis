@@ -1,0 +1,366 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# ## Importing Libraries and Loading Data
+
+# In[1]:
+
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+import plotly.express as px
+
+sns.set()
+
+
+# In[2]:
+
+
+hdf = pd.read_csv("Heart Disease data.csv")
+
+
+# ## Data Exploration
+
+# In[3]:
+
+
+hdf.head()
+
+
+# In[4]:
+
+
+hdf.describe()
+
+
+# In[5]:
+
+
+hdf.info()
+
+
+# In[6]:
+
+
+hdf.shape
+
+
+# In[7]:
+
+
+hdf.isnull().sum()
+
+
+# ##### Observation
+
+# There is no NaN value in the given dataset.
+
+# In[8]:
+
+
+hdf.duplicated().sum()
+
+
+# ##### Observation
+
+# It implies there are only 302 unique rows or persons' data, approx. 71% data is duplicate
+
+# ## Data Cleaning and Preprocessing
+
+# #### Removing Duplicates
+
+# In[9]:
+
+
+hdf = hdf.drop_duplicates()
+hdf.head()
+
+
+# In[10]:
+
+
+hdf.shape
+
+
+# In[11]:
+
+
+# Create a boxplot for different features in hdf dataset
+for column_name in hdf.columns:
+    plt.figure(figsize=(12, 6))
+    plt.boxplot(hdf[column_name], vert=False, sym='b.')
+    plt.title(f'Boxplot for {column_name}')
+    plt.xlabel(column_name)
+    plt.ylabel('Distribution')
+    plt.show()
+
+
+# In[12]:
+
+
+for feature in hdf.columns:
+    plt.figure(figsize=(12, 6))
+
+    plt.subplot(1, 2, 1)
+    plt.hist(hdf[feature].dropna(), bins=30, color='brown', alpha=0.7)
+    plt.title(f'Distribution of {feature}')
+    plt.xlabel(feature)
+    plt.ylabel('Frequency')
+    
+    mean_value = hdf[feature].mean()
+    std_dev = hdf[feature].std()
+
+    plt.axvline(mean_value, color='red', linestyle='dashed', linewidth=2, label='Mean')
+    
+
+    # Adding standard deviation lines
+    plt.axvline(mean_value + std_dev, color='blue', linestyle='dashed', linewidth=2, label='Mean + 1 Std Dev')
+    plt.axvline(mean_value - std_dev, color='blue', linestyle='dashed', linewidth=2, label='Mean - 1 Std Dev')
+    plt.axvline(mean_value + 2*std_dev, color='green', linestyle='dashed', linewidth=2, label='Mean + 2 Std Dev')
+    plt.axvline(mean_value - 2*std_dev, color='green', linestyle='dashed', linewidth=2, label='Mean - 2 Std Dev')
+    plt.axvline(mean_value + 3*std_dev, color='brown', linestyle='dashed', linewidth=2, label='Mean + 3 Std Dev')
+    plt.axvline(mean_value - 3*std_dev, color='brown', linestyle='dashed', linewidth=2, label='Mean - 3 Std Dev')
+    
+    plt.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+
+# ##### Observation:
+
+# Given that the variables 'age', 'trestbps', 'chol', and 'thalach' exhibit outliers and have distributions approximating normality, the optimal method for outlier removal would be the z-score method. However, 'oldpeak' also displays outliers, but its distribution is right-skewed. In this scenario, the most effective approach for outlier removal is the IQR (Inter-Quartile Range) method.
+
+# In[13]:
+
+
+#For a variable with [right-] skewed distribution
+column = 'oldpeak'
+# Step 1: Calculate IQR
+q1 = hdf[column].quantile(0.25)
+q3 = hdf[column].quantile(0.75)
+iqr = q3 - q1
+
+# Step 2: Define lower and upper bounds
+lower_bound = q1 - 1.5 * iqr
+upper_bound = q3 + 1.5 * iqr
+
+# Step 3: Remove outliers
+hdf = hdf[(hdf[column] >= lower_bound) & (hdf[column] <= upper_bound)]
+hdf.head()
+
+
+# In[14]:
+
+
+#For a variable with normal distribution
+def remove_outliers(df, columns, threshold=3):
+    hdf_no_outliers = df.copy()
+
+    for column_name in columns:
+        z_scores = stats.zscore(hdf_no_outliers[column_name])
+
+        # Identify and remove outliers
+        outliers_indices = (abs(z_scores) > threshold)
+        hdf_no_outliers = hdf_no_outliers[~outliers_indices]
+
+        # Print the number of removed outliers
+        print(f"Number of outliers removed in {column_name}: {sum(outliers_indices)}")
+
+    return hdf_no_outliers
+
+columns_to_remove_outliers = ["age", "trestbps", "chol", "thalach"]
+hdf_cleaned = remove_outliers(hdf, columns_to_remove_outliers)
+
+
+# In[15]:
+
+
+hdf_cleaned.shape
+
+
+# In[16]:
+
+
+# Create a boxplot for different features in hdf dataset
+for column_name in hdf_cleaned.columns:
+    plt.figure(figsize=(12, 6))
+    plt.boxplot(hdf_cleaned[column_name], vert=False, sym='b.')
+    plt.title(f'Boxplot for {column_name}')
+    plt.xlabel(column_name)
+    plt.ylabel('Distribution')
+    plt.show()
+
+
+# In[17]:
+
+
+for feature in hdf_cleaned.columns:
+    plt.figure(figsize=(12, 6))
+
+    plt.subplot(1, 2, 1)
+    plt.hist(hdf_cleaned[feature].dropna(), bins=30, color='brown', alpha=0.7)
+    plt.title(f'Distribution of {feature}')
+    plt.xlabel(feature)
+    plt.ylabel('Frequency')
+    
+    
+    mean_value = hdf[feature].mean()
+    std_dev = hdf[feature].std()
+    
+    plt.axvline(mean_value, color='red', linestyle='dashed', linewidth=2, label='Mean')
+    
+
+    # Adding standard deviation lines
+    plt.axvline(mean_value + std_dev, color='blue', linestyle='dashed', linewidth=2, label='Mean + 1 Std Dev')
+    plt.axvline(mean_value - std_dev, color='blue', linestyle='dashed', linewidth=2, label='Mean - 1 Std Dev')
+    plt.axvline(mean_value + 2*std_dev, color='green', linestyle='dashed', linewidth=2, label='Mean + 2 Std Dev')
+    plt.axvline(mean_value - 2*std_dev, color='green', linestyle='dashed', linewidth=2, label='Mean - 2 Std Dev')
+    plt.axvline(mean_value + 3*std_dev, color='brown', linestyle='dashed', linewidth=2, label='Mean + 3 Std Dev')
+    plt.axvline(mean_value - 3*std_dev, color='brown', linestyle='dashed', linewidth=2, label='Mean - 3 Std Dev')
+    
+    plt.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+
+# In[18]:
+
+
+for feature in hdf.columns:
+    plt.figure(figsize=(12, 6))
+
+    plt.subplot(1, 2, 1)
+    plt.hist(hdf[feature].dropna(), bins=30, color='red', alpha=0.7)
+    plt.title(f'Distribution of {feature}')
+    plt.xlabel(feature)
+    plt.ylabel('Frequency')
+
+    mean_value = hdf[feature].mean()
+    std_dev = hdf[feature].std()
+
+    plt.axvline(mean_value, color='red', linestyle='dashed', linewidth=2, label='Mean')
+    
+
+    # Adding standard deviation lines
+    plt.axvline(mean_value + std_dev, color='blue', linestyle='dashed', linewidth=2, label='Mean + 1 Std Dev')
+    plt.axvline(mean_value - std_dev, color='blue', linestyle='dashed', linewidth=2, label='Mean - 1 Std Dev')
+    plt.axvline(mean_value + 2*std_dev, color='green', linestyle='dashed', linewidth=2, label='Mean + 2 Std Dev')
+    plt.axvline(mean_value - 2*std_dev, color='green', linestyle='dashed', linewidth=2, label='Mean - 2 Std Dev')
+    plt.axvline(mean_value + 3*std_dev, color='brown', linestyle='dashed', linewidth=2, label='Mean + 3 Std Dev')
+    plt.axvline(mean_value - 3*std_dev, color='brown', linestyle='dashed', linewidth=2, label='Mean - 3 Std Dev')
+    
+
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+
+# In[19]:
+
+
+hdf_cleaned.info()
+
+
+# In[20]:
+
+
+hdf_cleaned.describe()
+
+
+# ##### Observation
+
+# After removing the potential outliers using IQR and z-score methods, we are left with only 290 unique rows suitable for further analysis
+
+# In[21]:
+
+
+hdf_cleaned
+
+
+# In[22]:
+
+
+correlation_data = hdf_cleaned[hdf_cleaned.columns]
+
+correlation_matrix = correlation_data.corr()
+
+plt.figure(figsize=(12, 6))
+sns.heatmap(correlation_matrix, annot=True, cmap='RdBu', fmt=".2f", linewidths=.5)
+
+plt.title('Correlation Heatmap',fontweight='bold',fontsize = 14)
+plt.xticks(rotation=0)
+plt.yticks(rotation=0)
+
+plt.show()
+
+
+# ##### Observation
+
+# Since 'target' is binary, where 0 suggests the "absence of heart disease," and 1 suggests the "presence of heart disease," a positive correlation of other variables to 'target' can indicate how much that variable could be contributing to the disease.
+# 
+# From the above correlation heatmap, we observe that 'cp,' 'restecg,' 'thalach,' and 'slope' have a positive correlation with 'target.' Whereas the other variables are negatively correlated.
+# 
+
+# ### Feature Engineering
+
+# In[23]:
+
+
+def create_features(df):
+    #Feature: Patient ID as index of the dataset
+    df['Patient ID'] = df.index+1
+    
+    # Feature: Cholesterol Score
+    df['Cholesterol Score'] = pd.cut(df['chol'], bins=[0, 199, 239, float('inf')], labels=[1, 2, 3])
+
+    # Feature: Exercise Capacity Score
+    df['Exercise Capacity Score'] = df['thalach'] - df['age']
+
+    # Feature: Heart Disease Prevalence
+    df['Heart Disease Prevalence'] = df['target'].map({0: 'No Heart Disease', 1: 'Heart Disease'})
+
+    return df
+
+# Assuming 'your_dataset' is your DataFrame containing the specified columns
+hdf_cleaned = create_features(hdf_cleaned)
+hdf_cleaned
+
+
+# In[24]:
+
+
+columns_of_interest = ['target','ca', 'Cholesterol Score', 'cp', 'Exercise Capacity Score', 'oldpeak', 'restecg', 'thalach', 'trestbps']
+
+# Selecting the columns of interest
+selected_df = hdf_cleaned[columns_of_interest]
+
+# Calculating the correlation matrix
+correlation_matrix = selected_df.corr()
+
+# Creating an interactive heatmap using Plotly Express
+fig = px.imshow(correlation_matrix,
+                labels=dict(color="Correlation"),
+                x=columns_of_interest,
+                y=columns_of_interest,
+                color_continuous_scale="RdBu",
+                title='Interactive Correlation Heatmap')
+
+# Display the figure
+fig.show()
+
+
+# In[25]:
+
+
+hdf_cleaned.to_csv("Project_10_Heart_Disease_Diagonistic_Analysis(Cleaned).csv")
+
+
+# In[ ]:
+
+
+
+
